@@ -5,113 +5,145 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Zone Royale</title>
 <style>
-html,body{margin:0;height:100%;background:#2d5a27;overflow:hidden;touch-action:none}
-canvas{display:block}
+html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none}
+canvas{position:fixed;left:0;top:0}
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-const c=document.getElementById('c'),g=c.getContext('2d');
-function resize(){c.width=innerWidth;c.height=innerHeight}
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+document.body.appendChild(renderer.domElement);
+const u=document.createElement('canvas');
+document.body.appendChild(u);
+u.style.pointerEvents='none';
+const g=u.getContext('2d');
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x9ec9e8);
+scene.fog=new THREE.Fog(0x9ec9e8,40,180);
+const cam=new THREE.PerspectiveCamera(60,1,0.1,400);
+scene.add(new THREE.HemisphereLight(0xffffff,0x556b2f,0.9));
+const sun=new THREE.DirectionalLight(0xffffff,0.8);
+sun.position.set(50,80,30);scene.add(sun);
+function mat(c){return new THREE.MeshLambertMaterial({color:c})}
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(1000,1000),mat(0x4a7a3a));
+ground.rotation.x=-Math.PI/2;scene.add(ground);
+let seed=7;
+function rnd(){seed=(seed*16807)%2147483647;return seed/2147483647}
+for(let i=0;i<150;i++){
+ const x=(rnd()-.5)*400,z=(rnd()-.5)*400;
+ if(Math.hypot(x,z)<8)continue;
+ if(rnd()<.6){
+  const t=new THREE.Group();
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.3,.4,3),mat(0x5b3a1e));
+  trunk.position.y=1.5;
+  const top=new THREE.Mesh(new THREE.ConeGeometry(2,6,8),mat(0x1f4d2b));
+  top.position.y=6;
+  t.add(trunk,top);t.position.set(x,0,z);scene.add(t);
+ }else{
+  const s=1+rnd()*2;
+  const r=new THREE.Mesh(new THREE.DodecahedronGeometry(s),mat(0x777777));
+  r.position.set(x,s*.5,z);scene.add(r);
+ }
+}
+const me=new THREE.Group();
+const body=new THREE.Mesh(new THREE.BoxGeometry(.8,1.1,.45),mat(0x4b5a3a));body.position.y=1.3;
+const head=new THREE.Mesh(new THREE.SphereGeometry(.25,12,12),mat(0xe0b08a));head.position.y=2.1;
+const helmet=new THREE.Mesh(new THREE.SphereGeometry(.28,12,12,0,Math.PI*2,0,Math.PI/2),mat(0x2f3a25));helmet.position.y=2.15;
+const legL=new THREE.Mesh(new THREE.BoxGeometry(.3,.8,.3),mat(0x333b2a));legL.position.set(-.2,.4,0);
+const legR=legL.clone();legR.position.x=.2;
+const gun=new THREE.Mesh(new THREE.BoxGeometry(.12,.15,1),mat(0x222222));gun.position.set(.35,1.4,.5);
+me.add(body,head,helmet,legL,legR,gun);scene.add(me);
+function resize(){
+ renderer.setSize(innerWidth,innerHeight);
+ cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();
+ u.width=innerWidth;u.height=innerHeight}
 resize();addEventListener('resize',resize);
-const player={x:1000,y:1000,a:0};
-const joy={on:false,id:null,bx:0,by:0,dx:0,dy:0,sprint:false,moved:false,ldx:1,ldy:0};
-const auto={on:false,dx:1,dy:0};
-const set={lock:true};
-try{const s=localStorage.getItem('zrLock');if(s!==null)set.lock=(s==='1')}catch(err){}
-const ui={open:false};
+const P={x:0,z:0,yaw:0,pitch:.35,face:0};
+const joy={on:false,id:null,bx:0,by:0,dx:0,dy:0,sprint:false,moved:false,ldx:0,ldy:-1};
+const auto={on:false,dx:0,dy:-1};
+const look={id:null,x:0,y:0};
 const R=60;
-function inR(x,y,rx,ry,rw,rh){return x>=rx&&x<=rx+rw&&y>=ry&&y<=ry+rh}
-function panel(){
- const pw=Math.min(300,c.width-40),ph=170,px=(c.width-pw)/2,py=c.height/2-ph/2;
- return{px,py,pw,ph,tx:px+20,ty:py+60,tw:pw-40,th:44,cx:px+pw/2-50,cy:py+118,cw:100,ch:38}}
-c.addEventListener('touchstart',e=>{for(const t of e.changedTouches){
+addEventListener('touchstart',e=>{for(const t of e.changedTouches){
  const x=t.clientX,y=t.clientY;
- if(ui.open){const p=panel();
-  if(inR(x,y,p.tx,p.ty,p.tw,p.th)){set.lock=!set.lock;if(!set.lock)auto.on=false;try{localStorage.setItem('zrLock',set.lock?'1':'0')}catch(err){}}
-  else if(inR(x,y,p.cx,p.cy,p.cw,p.ch)||!inR(x,y,p.px,p.py,p.pw,p.ph)){ui.open=false}
-  continue}
- if(Math.hypot(x-(c.width-40),y-40)<30){ui.open=true;continue}
- if(!joy.on&&x<innerWidth/2){joy.on=true;joy.id=t.identifier;joy.bx=x;joy.by=y;joy.dx=joy.dy=0;joy.sprint=false;joy.moved=false}
+ if(x<innerWidth/2){
+  if(!joy.on){joy.on=true;joy.id=t.identifier;joy.bx=x;joy.by=y;joy.dx=joy.dy=0;joy.sprint=false;joy.moved=false}
+ }else if(look.id===null){look.id=t.identifier;look.x=x;look.y=y}
 }});
-c.addEventListener('touchmove',e=>{for(const t of e.changedTouches){if(t.identifier===joy.id){
- let x=t.clientX-joy.bx,y=t.clientY-joy.by;const d=Math.hypot(x,y);
- if(d>12)joy.moved=true;
- if(d>R*0.3){joy.ldx=x/d;joy.ldy=y/d}
- if(d>R*1.35)joy.sprint=true;else if(!set.lock)joy.sprint=false;
- if(d>R){x=x/d*R;y=y/d*R}
- joy.dx=x/R;joy.dy=y/R}}});
+addEventListener('touchmove',e=>{for(const t of e.changedTouches){
+ if(t.identifier===joy.id){
+  let x=t.clientX-joy.bx,y=t.clientY-joy.by;const d=Math.hypot(x,y);
+  if(d>12)joy.moved=true;
+  if(d>R*0.3){joy.ldx=x/d;joy.ldy=y/d}
+  if(d>R*1.35)joy.sprint=true;
+  if(d>R){x=x/d*R;y=y/d*R}
+  joy.dx=x/R;joy.dy=y/R;
+ }
+ if(t.identifier===look.id){
+  P.yaw-=(t.clientX-look.x)*.006;
+  P.pitch=Math.max(.05,Math.min(1,P.pitch+(t.clientY-look.y)*.004));
+  look.x=t.clientX;look.y=t.clientY;
+ }
+}});
 function end(e){for(const t of e.changedTouches){
  if(t.identifier===joy.id){
-  if(set.lock&&joy.sprint&&joy.moved){auto.on=true;auto.dx=joy.ldx;auto.dy=joy.ldy}
+  if(joy.sprint&&joy.moved){auto.on=true;auto.dx=joy.ldx;auto.dy=joy.ldy}
   else auto.on=false;
-  joy.on=false;joy.dx=joy.dy=0;joy.sprint=false}}}
-c.addEventListener('touchend',end);c.addEventListener('touchcancel',end);
-function drawPlayer(x,y,a){
- g.save();g.translate(x,y);g.rotate(a);
- g.fillStyle='rgba(0,0,0,.25)';g.beginPath();g.ellipse(2,3,20,16,0,0,7);g.fill();
- g.fillStyle='#333';g.fillRect(10,2,28,6);
- g.fillStyle='#f1c27d';
- g.beginPath();g.arc(16,5,5,0,7);g.fill();
- g.beginPath();g.arc(30,5,5,0,7);g.fill();
- g.fillStyle='#2b6cb0';g.beginPath();g.ellipse(0,0,10,17,0,0,7);g.fill();
- g.fillStyle='#1a365d';g.beginPath();g.arc(0,0,10,0,7);g.fill();
- g.fillStyle='#4a5568';g.beginPath();g.arc(3,0,4,0,7);g.fill();
- g.restore()}
-function loop(){
+  joy.on=false;joy.dx=joy.dy=0;joy.sprint=false}
+ if(t.identifier===look.id)look.id=null;
+}}
+addEventListener('touchend',end);addEventListener('touchcancel',end);
+let last=performance.now();
+function loop(now){
+ const dt=Math.min((now-last)/1000,.05);last=now;
+ let ix=0,iy=0,sp=false,move=false;
  const mag=Math.hypot(joy.dx,joy.dy);
- if(joy.on&&mag>0.05){
-  player.a=Math.atan2(joy.dy,joy.dx);
-  if(joy.sprint){player.x+=joy.dx/mag*7;player.y+=joy.dy/mag*7}
-  else{player.x+=joy.dx*4;player.y+=joy.dy*4}
- }else if(auto.on){
-  player.a=Math.atan2(auto.dy,auto.dx);
-  player.x+=auto.dx*7;player.y+=auto.dy*7;
- }
- g.fillStyle='#2d5a27';g.fillRect(0,0,c.width,c.height);
- const cx=player.x-c.width/2,cy=player.y-c.height/2;
- g.strokeStyle='rgba(0,0,0,.12)';g.lineWidth=1;
- for(let x=-(cx%100);x<c.width;x+=100){g.beginPath();g.moveTo(x,0);g.lineTo(x,c.height);g.stroke()}
- for(let y=-(cy%100);y<c.height;y+=100){g.beginPath();g.moveTo(0,y);g.lineTo(c.width,y);g.stroke()}
- drawPlayer(c.width/2,c.height/2,player.a);
+ if(joy.on&&mag>.05){ix=joy.dx;iy=joy.dy;sp=joy.sprint;move=true}
+ else if(auto.on){ix=auto.dx;iy=auto.dy;sp=true;move=true}
+ if(move){
+  const m=Math.hypot(ix,iy);
+  const amt=sp?1:Math.min(1,m);
+  const nx=ix/m,ny=iy/m;
+  const fx=Math.sin(P.yaw),fz=Math.cos(P.yaw);
+  const rx=-Math.cos(P.yaw),rz=Math.sin(P.yaw);
+  const vx=fx*(-ny)+rx*nx,vz=fz*(-ny)+rz*nx;
+  const spd=(sp?7:4)*amt;
+  P.x+=vx*spd*dt;P.z+=vz*spd*dt;
+  P.face=Math.atan2(vx,vz);
+ }else{P.face=P.yaw}
+ const w=move?Math.sin(now/1000*(sp?16:10))*.7:0;
+ legL.rotation.x=w;legR.rotation.x=-w;
+ me.position.set(P.x,0,P.z);me.rotation.y=P.face;
+ const d=6;
+ cam.position.set(P.x-Math.sin(P.yaw)*Math.cos(P.pitch)*d,1.8+Math.sin(P.pitch)*d,P.z-Math.cos(P.yaw)*Math.cos(P.pitch)*d);
+ cam.lookAt(P.x,1.8,P.z);
+ renderer.render(scene,cam);
+ g.clearRect(0,0,u.width,u.height);
  if(joy.on){
-  g.strokeStyle='#fff8';g.lineWidth=2;g.beginPath();g.arc(joy.bx,joy.by,R,0,7);g.stroke();
-  g.fillStyle='#fff6';g.beginPath();g.arc(joy.bx+joy.dx*R,joy.by+joy.dy*R,25,0,7);g.fill();
-  const ix=joy.bx,iy=joy.by-R-50;
+  g.strokeStyle='rgba(255,255,255,.55)';g.lineWidth=2;
+  g.beginPath();g.arc(joy.bx,joy.by,R,0,7);g.stroke();
+  g.fillStyle='rgba(255,255,255,.4)';
+  g.beginPath();g.arc(joy.bx+joy.dx*R,joy.by+joy.dy*R,25,0,7);g.fill();
+  const ix2=joy.bx,iy2=joy.by-R-50;
   g.fillStyle=joy.sprint?'rgba(255,160,0,.9)':'rgba(255,255,255,.25)';
-  g.beginPath();g.arc(ix,iy,26,0,7);g.fill();
-  g.strokeStyle='#fff9';g.stroke();
+  g.beginPath();g.arc(ix2,iy2,26,0,7);g.fill();
   g.fillStyle='#fff';g.font='bold 11px sans-serif';g.textAlign='center';
-  g.fillText('SPRINT',ix,iy+4);
+  g.fillText('SPRINT',ix2,iy2+4);
  }
  if(auto.on&&!joy.on){
-  g.fillStyle='rgba(255,160,0,.85)';
-  g.fillRect(20,c.height-90,190,44);
+  g.fillStyle='rgba(255,160,0,.85)';g.fillRect(20,u.height-70,190,44);
   g.fillStyle='#fff';g.font='bold 14px sans-serif';g.textAlign='center';
-  g.fillText('AUTO SPRINT',115,c.height-66);
-  g.font='11px sans-serif';g.fillText('tap left side to stop',115,c.height-52);
+  g.fillText('AUTO SPRINT',115,u.height-46);
+  g.font='11px sans-serif';g.fillText('tap left side to stop',115,u.height-32);
  }
- g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.arc(c.width-40,40,22,0,7);g.fill();
- g.fillStyle='#fff';g.font='24px sans-serif';g.textAlign='center';g.fillText('\u2699',c.width-40,49);
- if(ui.open){
-  const p=panel();
-  g.fillStyle='rgba(0,0,0,.55)';g.fillRect(0,0,c.width,c.height);
-  g.fillStyle='#1a202c';g.fillRect(p.px,p.py,p.pw,p.ph);
-  g.fillStyle='#fff';g.font='bold 18px sans-serif';g.textAlign='center';
-  g.fillText('SETTINGS',p.px+p.pw/2,p.py+34);
-  g.fillStyle='#2d3748';g.fillRect(p.tx,p.ty,p.tw,p.th);
-  g.textAlign='left';g.font='16px sans-serif';g.fillStyle='#fff';
-  g.fillText('Auto sprint',p.tx+14,p.ty+28);
-  g.textAlign='right';g.font='bold 16px sans-serif';
-  g.fillStyle=set.lock?'#48bb78':'#a0aec0';
-  g.fillText(set.lock?'ON':'OFF',p.tx+p.tw-14,p.ty+28);
-  g.fillStyle='#4a5568';g.fillRect(p.cx,p.cy,p.cw,p.ch);
-  g.fillStyle='#fff';g.textAlign='center';g.font='16px sans-serif';
-  g.fillText('Close',p.cx+p.cw/2,p.cy+25);
+ if(innerHeight>innerWidth){
+  g.fillStyle='rgba(0,0,0,.85)';g.fillRect(0,0,u.width,u.height);
+  g.fillStyle='#fff';g.font='bold 22px sans-serif';g.textAlign='center';
+  g.fillText('Rotate your phone sideways',u.width/2,u.height/2);
  }
  requestAnimationFrame(loop)}
-loop();
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
