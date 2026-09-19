@@ -15,26 +15,90 @@ canvas{display:block}
 const c=document.getElementById('c'),g=c.getContext('2d');
 function resize(){c.width=innerWidth;c.height=innerHeight}
 resize();addEventListener('resize',resize);
-const player={x:1000,y:1000,r:16};
+const player={x:1000,y:1000,a:0};
 const joy={on:false,id:null,bx:0,by:0,dx:0,dy:0,sprint:false};
+const set={lock:true};
+try{const s=localStorage.getItem('zrLock');if(s!==null)set.lock=(s==='1')}catch(err){}
+const ui={open:false};
 const R=60;
+function inR(x,y,rx,ry,rw,rh){return x>=rx&&x<=rx+rw&&y>=ry&&y<=ry+rh}
+function panel(){
+ const pw=Math.min(300,c.width-40),ph=170,px=(c.width-pw)/2,py=c.height/2-ph/2;
+ return{px,py,pw,ph,tx:px+20,ty:py+60,tw:pw-40,th:44,cx:px+pw/2-50,cy:py+118,cw:100,ch:38}}
 c.addEventListener('touchstart',e=>{for(const t of e.changedTouches){
- if(!joy.on&&t.clientX<innerWidth/2){joy.on=true;joy.id=t.identifier;joy.bx=t.clientX;joy.by=t.clientY;joy.dx=joy.dy=0;joy.sprint=false}}});
+ const x=t.clientX,y=t.clientY;
+ if(ui.open){const p=panel();
+  if(inR(x,y,p.tx,p.ty,p.tw,p.th)){set.lock=!set.lock;try{localStorage.setItem('zrLock',set.lock?'1':'0')}catch(err){}}
+  else if(inR(x,y,p.cx,p.cy,p.cw,p.ch)||!inR(x,y,p.px,p.py,p.pw,p.ph)){ui.open=false}
+  continue}
+ if(Math.hypot(x-(c.width-40),y-40)<30){ui.open=true;continue}
+ if(!joy.on&&x<innerWidth/2){joy.on=true;joy.id=t.identifier;joy.bx=x;joy.by=y;joy.dx=joy.dy=0;joy.sprint=false}
+}});
 c.addEventListener('touchmove',e=>{for(const t of e.changedTouches){if(t.identifier===joy.id){
  let x=t.clientX-joy.bx,y=t.clientY-joy.by;const d=Math.hypot(x,y);
- joy.sprint=d>R*1.35;
+ if(d>R*1.35)joy.sprint=true;else if(!set.lock)joy.sprint=false;
  if(d>R){x=x/d*R;y=y/d*R}
  joy.dx=x/R;joy.dy=y/R}}});
 function end(e){for(const t of e.changedTouches){
  if(t.identifier===joy.id){joy.on=false;joy.dx=joy.dy=0;joy.sprint=false}}}
 c.addEventListener('touchend',end);c.addEventListener('touchcancel',end);
+function drawPlayer(x,y,a){
+ g.save();g.translate(x,y);g.rotate(a);
+ g.fillStyle='rgba(0,0,0,.25)';g.beginPath();g.ellipse(2,3,20,16,0,0,7);g.fill();
+ g.fillStyle='#333';g.fillRect(10,2,28,6);
+ g.fillStyle='#f1c27d';
+ g.beginPath();g.arc(16,5,5,0,7);g.fill();
+ g.beginPath();g.arc(30,5,5,0,7);g.fill();
+ g.fillStyle='#2b6cb0';g.beginPath();g.ellipse(0,0,10,17,0,0,7);g.fill();
+ g.fillStyle='#1a365d';g.beginPath();g.arc(0,0,10,0,7);g.fill();
+ g.fillStyle='#4a5568';g.beginPath();g.arc(3,0,4,0,7);g.fill();
+ g.restore()}
 function loop(){
  const mag=Math.hypot(joy.dx,joy.dy);
- if(mag>0){
+ if(mag>0.05){
+  player.a=Math.atan2(joy.dy,joy.dx);
   if(joy.sprint){player.x+=joy.dx/mag*7;player.y+=joy.dy/mag*7}
   else{player.x+=joy.dx*4;player.y+=joy.dy*4}
  }
  g.fillStyle='#2d5a27';g.fillRect(0,0,c.width,c.height);
+ const cx=player.x-c.width/2,cy=player.y-c.height/2;
+ g.strokeStyle='rgba(0,0,0,.12)';g.lineWidth=1;
+ for(let x=-(cx%100);x<c.width;x+=100){g.beginPath();g.moveTo(x,0);g.lineTo(x,c.height);g.stroke()}
+ for(let y=-(cy%100);y<c.height;y+=100){g.beginPath();g.moveTo(0,y);g.lineTo(c.width,y);g.stroke()}
+ drawPlayer(c.width/2,c.height/2,player.a);
+ if(joy.on){
+  g.strokeStyle='#fff8';g.lineWidth=2;g.beginPath();g.arc(joy.bx,joy.by,R,0,7);g.stroke();
+  g.fillStyle='#fff6';g.beginPath();g.arc(joy.bx+joy.dx*R,joy.by+joy.dy*R,25,0,7);g.fill();
+  const ix=joy.bx,iy=joy.by-R-50;
+  g.fillStyle=joy.sprint?'rgba(255,160,0,.9)':'rgba(255,255,255,.25)';
+  g.beginPath();g.arc(ix,iy,26,0,7);g.fill();
+  g.strokeStyle='#fff9';g.stroke();
+  g.fillStyle='#fff';g.font='bold 11px sans-serif';g.textAlign='center';
+  g.fillText('SPRINT',ix,iy+4);
+ }
+ g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.arc(c.width-40,40,22,0,7);g.fill();
+ g.fillStyle='#fff';g.font='24px sans-serif';g.textAlign='center';g.fillText('\u2699',c.width-40,49);
+ if(ui.open){
+  const p=panel();
+  g.fillStyle='rgba(0,0,0,.55)';g.fillRect(0,0,c.width,c.height);
+  g.fillStyle='#1a202c';g.fillRect(p.px,p.py,p.pw,p.ph);
+  g.fillStyle='#fff';g.font='bold 18px sans-serif';g.textAlign='center';
+  g.fillText('SETTINGS',p.px+p.pw/2,p.py+34);
+  g.fillStyle='#2d3748';g.fillRect(p.tx,p.ty,p.tw,p.th);
+  g.textAlign='left';g.font='16px sans-serif';g.fillStyle='#fff';
+  g.fillText('Sprint lock',p.tx+14,p.ty+28);
+  g.textAlign='right';g.font='bold 16px sans-serif';
+  g.fillStyle=set.lock?'#48bb78':'#a0aec0';
+  g.fillText(set.lock?'ON':'OFF',p.tx+p.tw-14,p.ty+28);
+  g.fillStyle='#4a5568';g.fillRect(p.cx,p.cy,p.cw,p.ch);
+  g.fillStyle='#fff';g.textAlign='center';g.font='16px sans-serif';
+  g.fillText('Close',p.cx+p.cw/2,p.cy+25);
+ }
+ requestAnimationFrame(loop)}
+loop();
+</script>
+</body>
+</html> g.fillStyle='#2d5a27';g.fillRect(0,0,c.width,c.height);
  const cx=player.x-c.width/2,cy=player.y-c.height/2;
  g.strokeStyle='rgba(0,0,0,.12)';
  for(let x=-(cx%100);x<c.width;x+=100){g.beginPath();g.moveTo(x,0);g.lineTo(x,c.height);g.stroke()}
