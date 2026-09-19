@@ -17,13 +17,21 @@ function resize(){c.width=innerWidth;c.height=innerHeight}
 resize();addEventListener('resize',resize);
 const player={x:1000,y:1000,r:16};
 const joy={on:false,id:null,bx:0,by:0,dx:0,dy:0};
+const spr={on:false,id:null};
 const R=60;
-c.addEventListener('touchstart',e=>{for(const t of e.changedTouches){if(!joy.on&&t.clientX<innerWidth/2){joy.on=true;joy.id=t.identifier;joy.bx=t.clientX;joy.by=t.clientY;joy.dx=joy.dy=0}}});
+function sprBtn(){return{x:c.width-80,y:c.height-200,r:42}}
+c.addEventListener('touchstart',e=>{for(const t of e.changedTouches){
+ const b=sprBtn();
+ if(!spr.on&&Math.hypot(t.clientX-b.x,t.clientY-b.y)<b.r+15){spr.on=true;spr.id=t.identifier}
+ else if(!joy.on&&t.clientX<innerWidth/2){joy.on=true;joy.id=t.identifier;joy.bx=t.clientX;joy.by=t.clientY;joy.dx=joy.dy=0}}});
 c.addEventListener('touchmove',e=>{for(const t of e.changedTouches){if(t.identifier===joy.id){let x=t.clientX-joy.bx,y=t.clientY-joy.by;const d=Math.hypot(x,y);if(d>R){x=x/d*R;y=y/d*R}joy.dx=x/R;joy.dy=y/R}}});
-function end(e){for(const t of e.changedTouches){if(t.identifier===joy.id){joy.on=false;joy.dx=joy.dy=0}}}
+function end(e){for(const t of e.changedTouches){
+ if(t.identifier===joy.id){joy.on=false;joy.dx=joy.dy=0}
+ if(t.identifier===spr.id){spr.on=false}}}
 c.addEventListener('touchend',end);c.addEventListener('touchcancel',end);
 function loop(){
- player.x+=joy.dx*4;player.y+=joy.dy*4;
+ const speed=spr.on?7:4;
+ player.x+=joy.dx*speed;player.y+=joy.dy*speed;
  g.fillStyle='#2d5a27';g.fillRect(0,0,c.width,c.height);
  const cx=player.x-c.width/2,cy=player.y-c.height/2;
  g.strokeStyle='rgba(0,0,0,.12)';
@@ -31,6 +39,11 @@ function loop(){
  for(let y=-(cy%100);y<c.height;y+=100){g.beginPath();g.moveTo(0,y);g.lineTo(c.width,y);g.stroke()}
  g.fillStyle='#f5c542';g.beginPath();g.arc(c.width/2,c.height/2,player.r,0,7);g.fill();
  if(joy.on){g.strokeStyle='#fff8';g.beginPath();g.arc(joy.bx,joy.by,R,0,7);g.stroke();g.fillStyle='#fff6';g.beginPath();g.arc(joy.bx+joy.dx*R,joy.by+joy.dy*R,25,0,7);g.fill()}
+ const b=sprBtn();
+ g.fillStyle=spr.on?'rgba(255,160,0,.8)':'rgba(255,255,255,.3)';
+ g.beginPath();g.arc(b.x,b.y,b.r,0,7);g.fill();
+ g.strokeStyle='#fff9';g.lineWidth=3;g.stroke();g.lineWidth=1;
+ g.fillStyle='#fff';g.font='bold 14px sans-serif';g.textAlign='center';g.fillText('SPRINT',b.x,b.y+5);
  requestAnimationFrame(loop)}
 loop();
 </script>
