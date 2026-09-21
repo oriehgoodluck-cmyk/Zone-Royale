@@ -119,38 +119,47 @@ const joy={on:false,id:null,bx:0,by:0,dx:0,dy:0,sprint:false,moved:false,ldx:0,l
 const auto={on:false,dx:0,dy:-1};
 const look={id:null,x:0,y:0};
 const bt={};const held={fire:false};
+const fl={id:null,x:0,y:0};
 const R=60;
+function jpos(){return{x:140,y:u.height-110}}
+function turn(dx,dy){P.yaw-=dx*.006;P.pitch=Math.max(.05,Math.min(1,P.pitch+dy*.004))}
+function setJoy(px,py){
+ const jp=jpos();let x=px-jp.x,y=py-jp.y;const d=Math.hypot(x,y);
+ if(d>R*0.3){joy.ldx=x/d;joy.ldy=y/d}
+ if(d>R*1.35)joy.sprint=true;
+ if(d>R){x=x/d*R;y=y/d*R}
+ joy.dx=x/R;joy.dy=y/R}
 function btns(){const W=u.width,H=u.height;return[
  {n:'fire',x:W-100,y:H-105,r:52,t:'FIRE',c:'230,60,60'},
  {n:'jump',x:W-215,y:H-60,r:34,t:'JUMP',c:'255,255,255'},
  {n:'slide',x:W-100,y:H-225,r:34,t:'SLIDE',c:'255,255,255'}]}
-function doJump(){if(P.y===0&&P.slide<=0)P.vy=8}
+function doJump(){P.slide=0;if(P.y===0)P.vy=8}
 function doSlide(){
- if(P.y===0&&P.slide<=0){
-  if(P.moving){P.slide=.8;P.sdx=P.mvx;P.sdz=P.mvz;P.crouch=false}
-  else P.crouch=!P.crouch}}
+ if(P.slide>0)return;
+ if(P.y>0){P.y=0;P.vy=0}
+ if(P.moving){P.slide=.8;P.sdx=P.mvx;P.sdz=P.mvz;P.crouch=false}
+ else P.crouch=!P.crouch}
 addEventListener('touchstart',e=>{for(const t of e.changedTouches){
  const x=t.clientX,y=t.clientY;
  let hit=null;
  for(const b of btns()){if(Math.hypot(x-b.x,y-b.y)<b.r+12)hit=b.n}
- if(hit){bt[t.identifier]=hit;if(hit==='fire')held.fire=true;if(hit==='jump')doJump();if(hit==='slide')doSlide();continue}
- if(x<innerWidth/2){
-  if(!joy.on){joy.on=true;joy.id=t.identifier;joy.bx=x;joy.by=y;joy.dx=joy.dy=0;joy.sprint=false;joy.moved=false}
- }else if(look.id===null){look.id=t.identifier;look.x=x;look.y=y}
+ if(hit){bt[t.identifier]=hit;if(hit==='fire'){held.fire=true;fl.id=t.identifier;fl.x=x;fl.y=y}if(hit==='jump')doJump();if(hit==='slide')doSlide();continue}
+ const jp=jpos();
+ if(!joy.on&&Math.hypot(x-jp.x,y-jp.y)<R+50){joy.on=true;joy.id=t.identifier;joy.sx=x;joy.sy=y;joy.moved=false;joy.sprint=false;setJoy(x,y);continue}
+ if(look.id===null){look.id=t.identifier;look.x=x;look.y=y}
 }});
 addEventListener('touchmove',e=>{for(const t of e.changedTouches){
  if(t.identifier===joy.id){
-  let x=t.clientX-joy.bx,y=t.clientY-joy.by;const d=Math.hypot(x,y);
-  if(d>12)joy.moved=true;
-  if(d>R*0.3){joy.ldx=x/d;joy.ldy=y/d}
-  if(d>R*1.35)joy.sprint=true;
-  if(d>R){x=x/d*R;y=y/d*R}
-  joy.dx=x/R;joy.dy=y/R;
+  if(Math.hypot(t.clientX-joy.sx,t.clientY-joy.sy)>12)joy.moved=true;
+  setJoy(t.clientX,t.clientY);
  }
  if(t.identifier===look.id){
-  P.yaw-=(t.clientX-look.x)*.006;
-  P.pitch=Math.max(.05,Math.min(1,P.pitch+(t.clientY-look.y)*.004));
+  turn(t.clientX-look.x,t.clientY-look.y);
   look.x=t.clientX;look.y=t.clientY;
+ }
+ if(t.identifier===fl.id){
+  turn(t.clientX-fl.x,t.clientY-fl.y);
+  fl.x=t.clientX;fl.y=t.clientY;
  }
 }});
 function end(e){for(const t of e.changedTouches){
@@ -159,6 +168,7 @@ function end(e){for(const t of e.changedTouches){
   else auto.on=false;
   joy.on=false;joy.dx=joy.dy=0;joy.sprint=false}
  if(t.identifier===look.id)look.id=null;
+ if(t.identifier===fl.id)fl.id=null;
  const nm=bt[t.identifier];
  if(nm){if(nm==='fire')held.fire=false;delete bt[t.identifier]}
 }}
@@ -272,23 +282,17 @@ function loop(now){
   g.fillStyle='#fff';g.font='bold 12px sans-serif';g.textAlign='center';
   g.fillText(b.t,b.x,b.y+4);
  }
- if(joy.on){
-  g.strokeStyle='rgba(255,255,255,.55)';
-  g.beginPath();g.arc(joy.bx,joy.by,R,0,7);g.stroke();
-  g.fillStyle='rgba(255,255,255,.4)';
-  g.beginPath();g.arc(joy.bx+joy.dx*R,joy.by+joy.dy*R,25,0,7);g.fill();
-  const ix2=joy.bx,iy2=joy.by-R-50;
-  g.fillStyle=joy.sprint?'rgba(255,160,0,.9)':'rgba(255,255,255,.25)';
-  g.beginPath();g.arc(ix2,iy2,26,0,7);g.fill();
-  g.fillStyle='#fff';g.font='bold 11px sans-serif';g.textAlign='center';
-  g.fillText('SPRINT',ix2,iy2+4);
- }
- if(auto.on&&!joy.on){
-  g.fillStyle='rgba(255,160,0,.85)';g.fillRect(20,u.height-70,190,44);
-  g.fillStyle='#fff';g.font='bold 14px sans-serif';g.textAlign='center';
-  g.fillText('AUTO SPRINT',115,u.height-46);
-  g.font='11px sans-serif';g.fillText('tap left side to stop',115,u.height-32);
- }
+ const jp=jpos();
+ g.strokeStyle='rgba(255,255,255,.4)';g.lineWidth=2;
+ g.beginPath();g.arc(jp.x,jp.y,R,0,7);g.stroke();
+ g.fillStyle='rgba(255,255,255,'+(joy.on?.45:.25)+')';
+ g.beginPath();g.arc(jp.x+joy.dx*R,jp.y+joy.dy*R,25,0,7);g.fill();
+ const ix2=jp.x,iy2=jp.y-R-50,hot=joy.sprint||auto.on;
+ g.fillStyle=hot?'rgba(255,160,0,.9)':'rgba(255,255,255,.25)';
+ g.beginPath();g.arc(ix2,iy2,26,0,7);g.fill();
+ g.fillStyle='#fff';g.font='bold 11px sans-serif';g.textAlign='center';
+ g.fillText('SPRINT',ix2,iy2+4);
+ if(auto.on){g.font='bold 12px sans-serif';g.fillText('AUTO SPRINT - tap analog to stop',ix2+40,iy2-36)}
  if(innerHeight>innerWidth){
   g.fillStyle='rgba(0,0,0,.85)';g.fillRect(0,0,u.width,u.height);
   g.fillStyle='#fff';g.font='bold 22px sans-serif';g.textAlign='center';
