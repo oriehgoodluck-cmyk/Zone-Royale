@@ -114,13 +114,15 @@ function resize(){
  cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();
  u.width=innerWidth;u.height=innerHeight}
 resize();addEventListener('resize',resize);
-const P={x:0,z:0,y:0,vy:0,yaw:0,pitch:.3,slide:0,crouch:false,moving:false,mvx:0,mvz:1,sdx:0,sdz:1};
+const P={x:0,z:0,y:0,vy:0,yaw:0,pitch:.3,face:0,slide:0,crouch:false,moving:false,mvx:0,mvz:1,sdx:0,sdz:1};
 const joy={on:false,id:null,bx:0,by:0,dx:0,dy:0,sprint:false,moved:false,ldx:0,ldy:-1};
 const auto={on:false,dx:0,dy:-1};
 const look={id:null,x:0,y:0};
 const bt={};const held={fire:false};
 const fl={id:null,x:0,y:0};
+let ammo=30,rel=false,relStart=0,aimUntil=0;
 const R=60;
+function doReload(now){if(rel||ammo>=30)return;rel=true;relStart=now}
 function jpos(){return{x:140,y:u.height-110}}
 function turn(dx,dy){P.yaw-=dx*.006;P.pitch=Math.max(.05,Math.min(1,P.pitch+dy*.004))}
 function setJoy(px,py){
@@ -132,7 +134,8 @@ function setJoy(px,py){
 function btns(){const W=u.width,H=u.height;return[
  {n:'fire',x:W-100,y:H-105,r:52,t:'FIRE',c:'230,60,60'},
  {n:'jump',x:W-215,y:H-60,r:34,t:'JUMP',c:'255,255,255'},
- {n:'slide',x:W-100,y:H-225,r:34,t:'SLIDE',c:'255,255,255'}]}
+ {n:'slide',x:W-100,y:H-225,r:34,t:'SLIDE',c:'255,255,255'},
+ {n:'reload',x:W-215,y:H-155,r:32,t:'RELOAD',c:'80,160,255'}]}
 function doJump(){P.slide=0;if(P.y===0)P.vy=8}
 function doSlide(){
  if(P.slide>0)return;
@@ -143,7 +146,7 @@ addEventListener('touchstart',e=>{for(const t of e.changedTouches){
  const x=t.clientX,y=t.clientY;
  let hit=null;
  for(const b of btns()){if(Math.hypot(x-b.x,y-b.y)<b.r+12)hit=b.n}
- if(hit){bt[t.identifier]=hit;if(hit==='fire'){held.fire=true;fl.id=t.identifier;fl.x=x;fl.y=y}if(hit==='jump')doJump();if(hit==='slide')doSlide();continue}
+ if(hit){bt[t.identifier]=hit;if(hit==='fire'){held.fire=true;fl.id=t.identifier;fl.x=x;fl.y=y}if(hit==='jump')doJump();if(hit==='slide')doSlide();if(hit==='reload')doReload(performance.now());continue}
  const jp=jpos();
  if(!joy.on&&Math.hypot(x-jp.x,y-jp.y)<R+50){joy.on=true;joy.id=t.identifier;joy.sx=x;joy.sy=y;joy.moved=false;joy.sprint=false;setJoy(x,y);continue}
  if(look.id===null){look.id=t.identifier;look.x=x;look.y=y}
@@ -210,6 +213,7 @@ function shoot(now){
  const puff=new THREE.Mesh(puffGeo,puffMat);
  puff.position.copy(_e);scene.add(puff);fx.push({o:puff,until:now+120,own:false});
  flash.visible=true;flash.userData.until=now+50;
+ ammo--;aimUntil=now+1500;if(ammo<=0)doReload(now);
  if(hitD){
   hitD.hp-=25;setFlash(hitD.gp,true);hitD.fl=now+90;
   if(hitD.hp<=0){hitD.dead=true;hitD.t=now+3000;hitD.col.on=false;hitD.gp.rotation.x=-1.5;hitD.gp.position.y=.4;downs++}
@@ -246,9 +250,17 @@ function loop(now){
   if(d<mm&&d>.0001){P.x=c.x+dx/d*mm;P.z=c.z+dz/d*mm}
  }
  P.x=Math.max(-195,Math.min(195,P.x));P.z=Math.max(-195,Math.min(195,P.z));
- const w=(move||P.slide>0)&&P.y===0?Math.sin(now/1000*(sp?16:10))*.7:0;
+ const aim=held.fire||now<aimUntil;
+ let tgt=P.face;
+ if(P.slide>0)tgt=Math.atan2(P.sdx,P.sdz);
+ else if(aim)tgt=P.yaw;
+ else if(P.moving)tgt=Math.atan2(P.mvx,P.mvz);
+ let df=tgt-P.face;df=((df+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI;
+ const st=14*dt;P.face+=Math.max(-st,Math.min(st,df));
+ const dir=(Math.sin(P.face)*P.mvx+Math.cos(P.face)*P.mvz)<-.2?-1:1;
+ const w=(move||P.slide>0)&&P.y===0?Math.sin(now/1000*(sp?16:10))*.7*dir:0;
  legL.rotation.x=w;legR.rotation.x=-w;
- me.position.set(P.x,P.y,P.z);me.rotation.y=P.yaw;
+ me.position.set(P.x,P.y,P.z);me.rotation.y=P.face;
  me.scale.y=P.slide>0?.55:(P.crouch?.75:1);
  sky.position.set(P.x,0,P.z);
  sun.position.set(P.x+30,60,P.z+20);sun.target.position.set(P.x,0,P.z);
@@ -258,7 +270,8 @@ function loop(now){
  cam.position.set(tx-Math.sin(P.yaw)*Math.cos(P.pitch)*d2,camY+Math.sin(P.pitch)*d2,tz-Math.cos(P.yaw)*Math.cos(P.pitch)*d2);
  cam.lookAt(tx,camY,tz);
  cam.updateMatrixWorld(true);
- if(held.fire&&now>=nextShot){shoot(now);nextShot=now+100}
+ if(rel&&now-relStart>=1600){rel=false;ammo=30}
+ if(held.fire&&now>=nextShot&&!rel&&ammo>0){shoot(now);nextShot=now+100}
  if(flash.visible&&now>flash.userData.until)flash.visible=false;
  for(let i=fx.length-1;i>=0;i--){
   if(now>fx[i].until){scene.remove(fx[i].o);if(fx[i].own)fx[i].o.geometry.dispose();fx.splice(i,1)}}
@@ -274,6 +287,8 @@ function loop(now){
  g.moveTo(cx,cy-10);g.lineTo(cx,cy-4);g.moveTo(cx,cy+4);g.lineTo(cx,cy+10);g.stroke();
  g.fillStyle='#fff';g.font='bold 14px sans-serif';g.textAlign='left';
  g.fillText('TARGETS DOWN: '+downs,20,30);
+ g.textAlign='right';g.fillText(rel?'RELOADING...':'AMMO '+ammo+' / \u221e',u.width-20,30);
+ g.textAlign='center';g.font='11px sans-serif';g.fillStyle='rgba(255,255,255,.6)';g.fillText('BUILD 5',u.width/2,u.height-12);
  for(const b of btns()){
   const on=Object.values(bt).indexOf(b.n)>=0;
   g.fillStyle='rgba('+b.c+','+(on?.55:.28)+')';
