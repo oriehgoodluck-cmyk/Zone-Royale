@@ -274,9 +274,7 @@ function loop(now){
   const m=Math.hypot(ix,iy);
   const amt=sp?1:Math.min(1,m);
   const nx=ix/m,ny=iy/m;
-  const fx1=Math.sin(P.yaw),fz1=Math.cos(P.yaw);
-  const rx=-Math.cos(P.yaw),rz=Math.sin(P.yaw);
-  const vx=fx1*(-ny)+rx*nx,vz=fz1*(-ny)+rz*nx;
+  const vx=(Math.sin(P.yaw)*ny+Math.cos(P.yaw)*nx),vz=(Math.cos(P.yaw)*ny-Math.sin(P.yaw)*nx);
   let spd=(sp?7:4)*amt;
   if(P.crouch)spd*=.5;
   P.x+=vx*spd*dt;P.z+=vz*spd*dt;
@@ -330,7 +328,7 @@ function loop(now){
  g.fillStyle='#fff';g.font='bold 14px sans-serif';g.textAlign='left';
  g.fillText('TARGETS DOWN: '+downs,20,30);
  g.textAlign='right';g.fillText(rel?'RELOADING...':'AMMO '+ammo+' / \u221e',u.width-20,30);
- g.textAlign='center';g.font='11px sans-serif';g.fillStyle='rgba(255,255,255,.6)';g.fillText('BUILD 6 - FPP',u.width/2,u.height-12);
+ g.textAlign='center';g.font='11px sans-serif';g.fillStyle='rgba(255,255,255,.6)';g.fillText('BUILD 7 - FPP',u.width/2,u.height-12);
  for(const b of btns()){
   const on=Object.values(bt).indexOf(b.n)>=0;
   g.fillStyle='rgba('+b.c+','+(on?.55:.28)+')';
