@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Zone Royale - BUILD 9</title>
+<title>Zone Royale - BUILD 10</title>
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none}
 canvas{position:fixed;left:0;top:0}
@@ -143,6 +143,7 @@ const muzzle=new THREE.PointLight(0xffcc66,0,4);
 muzzle.position.set(.17,-.13,-1.1);gunGrp.add(muzzle);
 const flashv=new THREE.Mesh(new THREE.SphereGeometry(.05,8,8),new THREE.MeshBasicMaterial({color:0xffdd66}));
 flashv.position.set(.17,-.13,-1.1);flashv.visible=false;gunGrp.add(flashv);
+const dropMag=vbox(.07,.24,.1,0x1f1f1f,0,-.36,-.24);dropMag.visible=false;gunGrp.add(dropMag);
 
 function resize(){
  renderer.setSize(innerWidth,innerHeight);
@@ -157,6 +158,7 @@ const look={id:null,x:0,y:0};
 const bt={};const held={fire:false};
 const fl={id:null,x:0,y:0};
 let ammo=30,rel=false,relStart=0,aimUntil=0;
+const RELOAD_MS=1600;
 const R=60;
 function doReload(now){if(rel||ammo>=30)return;rel=true;relStart=now}
 function jpos(){return{x:140,y:u.height-110}}
@@ -300,11 +302,25 @@ function loop(now){
  cam.rotation.x=P.pitch;
  cam.rotation.z=0;
  cam.updateMatrixWorld(true);
- if(rel&&now-relStart>=1600){rel=false;ammo=30}
+ if(rel){
+  const rp=Math.min(1,(now-relStart)/RELOAD_MS);
+  if(rp<.5){
+   dropMag.visible=true;
+   dropMag.position.y=-.36-rp*2*1.1;
+   dropMag.rotation.z=rp*2*1.4;
+   magazine.visible=false;
+  }else{
+   dropMag.visible=false;
+   magazine.visible=true;
+   magazine.position.y=-.36-(1-(rp-.5)*2)*.5;
+  }
+  if(rp>=1){rel=false;ammo=30;magazine.position.y=-.36;dropMag.visible=false}
+ }
  if(held.fire&&now>=nextShot&&!rel&&ammo>0){shoot(now);nextShot=now+100}
  if(muzzle.intensity>0)muzzle.intensity=Math.max(0,muzzle.intensity-dt*14);
  if(flashv.visible&&now-flashKick>50)flashv.visible=false;
  recoil=Math.max(0,recoil-dt*.6);
+ const reloadTilt=rel?Math.sin(Math.min(1,(now-relStart)/RELOAD_MS)*Math.PI)*.5:0;
  for(let i=fx.length-1;i>=0;i--){
   if(now>fx[i].until){scene.remove(fx[i].o);if(fx[i].own)fx[i].o.geometry.dispose();fx.splice(i,1)}}
  for(const d of dummies){
@@ -317,7 +333,9 @@ function loop(now){
  rig.position.x=rig.userData.baseX*(1-av)+bobX*.4;
  rig.position.y=-recoil*.4+bobY*.5-av*.09;
  rig.position.z=recoil*.6-av*.18;
- rig.rotation.x=recoil*.5;
+ rig.rotation.x=recoil*.5+reloadTilt*.4;
+ rig.position.y+=-reloadTilt*.12;
+ rig.position.x+=-reloadTilt*.05;
  renderer.render(scene,cam);
  g.clearRect(0,0,u.width,u.height);
  const cx=u.width/2,cy=u.height/2;
@@ -328,7 +346,7 @@ function loop(now){
  g.fillText('TARGETS DOWN: '+downs,20,55);
  g.textAlign='right';g.fillText(rel?'RELOADING...':'AMMO '+ammo+' / \u221e',u.width-20,55);
  g.fillStyle='#ff3b3b';g.font='bold 20px sans-serif';g.textAlign='center';
- g.fillText('BUILD 9',u.width/2,30);
+ g.fillText('BUILD 10',u.width/2,30);
  for(const b of btns()){
   const on=Object.values(bt).indexOf(b.n)>=0;
   g.fillStyle='rgba('+b.c+','+(on?.55:.28)+')';
