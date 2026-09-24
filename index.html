@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Zone Royale</title>
+<title>Zone Royale - BUILD 8</title>
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none}
 canvas{position:fixed;left:0;top:0}
@@ -326,9 +326,10 @@ function loop(now){
  g.beginPath();g.moveTo(cx-10,cy);g.lineTo(cx-4,cy);g.moveTo(cx+4,cy);g.lineTo(cx+10,cy);
  g.moveTo(cx,cy-10);g.lineTo(cx,cy-4);g.moveTo(cx,cy+4);g.lineTo(cx,cy+10);g.stroke();
  g.fillStyle='#fff';g.font='bold 14px sans-serif';g.textAlign='left';
- g.fillText('TARGETS DOWN: '+downs,20,30);
- g.textAlign='right';g.fillText(rel?'RELOADING...':'AMMO '+ammo+' / \u221e',u.width-20,30);
- g.textAlign='center';g.font='11px sans-serif';g.fillStyle='rgba(255,255,255,.6)';g.fillText('BUILD 7 - FPP',u.width/2,u.height-12);
+ g.fillText('TARGETS DOWN: '+downs,20,55);
+ g.textAlign='right';g.fillText(rel?'RELOADING...':'AMMO '+ammo+' / \u221e',u.width-20,55);
+ g.fillStyle='#ff3b3b';g.font='bold 20px sans-serif';g.textAlign='center';
+ g.fillText('BUILD 8',u.width/2,30);
  for(const b of btns()){
   const on=Object.values(bt).indexOf(b.n)>=0;
   g.fillStyle='rgba('+b.c+','+(on?.55:.28)+')';
