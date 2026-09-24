@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Zone Royale - BUILD 8</title>
+<title>Zone Royale - BUILD 9</title>
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none}
 canvas{position:fixed;left:0;top:0}
@@ -183,9 +183,8 @@ addEventListener('touchstart',e=>{for(const t of e.changedTouches){
  let hit=null;
  for(const b of btns()){if(Math.hypot(x-b.x,y-b.y)<b.r+12)hit=b.n}
  if(hit){bt[t.identifier]=hit;if(hit==='fire'){held.fire=true;fl.id=t.identifier;fl.x=x;fl.y=y}if(hit==='jump')doJump();if(hit==='slide')doSlide();if(hit==='reload')doReload(performance.now());continue}
- const jp=jpos();
- if(!joy.on&&Math.hypot(x-jp.x,y-jp.y)<R+50){joy.on=true;joy.id=t.identifier;joy.sx=x;joy.sy=y;joy.moved=false;joy.sprint=false;setJoy(x,y);continue}
- if(look.id===null){look.id=t.identifier;look.x=x;look.y=y}
+ if(!joy.on&&x<innerWidth/2){joy.on=true;joy.id=t.identifier;joy.sx=x;joy.sy=y;joy.moved=false;joy.sprint=false;setJoy(x,y);continue}
+ if(look.id===null&&x>=innerWidth/2){look.id=t.identifier;look.x=x;look.y=y}
 }});
 addEventListener('touchmove',e=>{for(const t of e.changedTouches){
  if(t.identifier===joy.id){
@@ -329,7 +328,7 @@ function loop(now){
  g.fillText('TARGETS DOWN: '+downs,20,55);
  g.textAlign='right';g.fillText(rel?'RELOADING...':'AMMO '+ammo+' / \u221e',u.width-20,55);
  g.fillStyle='#ff3b3b';g.font='bold 20px sans-serif';g.textAlign='center';
- g.fillText('BUILD 8',u.width/2,30);
+ g.fillText('BUILD 9',u.width/2,30);
  for(const b of btns()){
   const on=Object.values(bt).indexOf(b.n)>=0;
   g.fillStyle='rgba('+b.c+','+(on?.55:.28)+')';
